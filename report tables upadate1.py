@@ -168,7 +168,7 @@ start = time.perf_counter(); y_ee, _, _ = explicit_euler(2.08e-4); t_ee = time.p
 print(f"{'Explicit Euler':<20} | {2.08e-4:<12.1e} | {np.linalg.norm(y_ee - y_exact_40, np.inf):<15.2e} | {t_ee:<15.4f} | {int(40/2.08e-4):<12} | {'-'}")
 start = time.perf_counter(); y_rk4, _, _ = rk4(8.00e-4); t_rk4 = time.perf_counter() - start
 print(f"{'Classical RK4':<20} | {8.00e-4:<12.1e} | {np.linalg.norm(y_rk4 - y_exact_40, np.inf):<15.2e} | {t_rk4:<15.4f} | {int(40/8e-4)*4:<12} | {'-'}")
-start = time.perf_counter(); y_imp, steps_imp, it_imp = implicit_euler_adaptive(1e-4); t_imp = time.perf_counter() - start
+start = time.perf_counter(); y_imp, steps_imp, it_imp = implicit_euler_adaptive(1.16e-5); t_imp = time.perf_counter() - start
 print(f"{'Implicit Euler (Adap)':<20} | {'Adaptive':<12} | {np.linalg.norm(y_imp - y_exact_40, np.inf):<15.2e} | {t_imp:<15.4f} | {steps_imp*3:<12} | {it_imp}")
 
 print("\n" + "="*85)
