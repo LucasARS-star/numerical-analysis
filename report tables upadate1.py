@@ -164,12 +164,18 @@ print("Note: CPU times depend on hardware. Please use your own measured data.")
 print("="*85)
 print(f"{'Method':<20} | {'Step Size h':<12} | {'Global Error':<15} | {'CPU Time (s)':<15} | {'RHS Evals':<12} | {'Newton Iters'}")
 print("-" * 100)
-start = time.perf_counter(); y_ee, _, _ = explicit_euler(2.08e-4); t_ee = time.perf_counter() - start
-print(f"{'Explicit Euler':<20} | {2.08e-4:<12.1e} | {np.linalg.norm(y_ee - y_exact_40, np.inf):<15.2e} | {t_ee:<15.4f} | {int(40/2.08e-4):<12} | {'-'}")
-start = time.perf_counter(); y_rk4, _, _ = rk4(8.00e-4); t_rk4 = time.perf_counter() - start
-print(f"{'Classical RK4':<20} | {8.00e-4:<12.1e} | {np.linalg.norm(y_rk4 - y_exact_40, np.inf):<15.2e} | {t_rk4:<15.4f} | {int(40/8e-4)*4:<12} | {'-'}")
-start = time.perf_counter(); y_imp, steps_imp, it_imp = implicit_euler_adaptive(1e-4); t_imp = time.perf_counter() - start
-print(f"{'Implicit Euler (Adap)':<20} | {'Adaptive':<12} | {np.linalg.norm(y_imp - y_exact_40, np.inf):<15.2e} | {t_imp:<15.4f} | {steps_imp*3:<12} | {it_imp}")
+
+h_ee = 40.0 / 67024
+start = time.perf_counter(); y_ee, n_ee, _ = explicit_euler(h_ee); t_ee = time.perf_counter() - start
+print(f"{'Explicit Euler':<20} | {h_ee:<12.1e} | {np.linalg.norm(y_ee - y_exact_40, np.inf):<15.2e} | {t_ee:<15.4f} | {n_ee:<12} | {'-'}")
+
+h_rk4 = 40.0 / 47807
+start = time.perf_counter(); y_rk4, n_rk4, _ = rk4(h_rk4); t_rk4 = time.perf_counter() - start
+print(f"{'Classical RK4':<20} | {h_rk4:<12.1e} | {np.linalg.norm(y_rk4 - y_exact_40, np.inf):<15.2e} | {t_rk4:<15.4f} | {n_rk4*4:<12} | {'-'}")
+
+h_imp = 40.0 / 280
+start = time.perf_counter(); y_imp, n_imp, it_imp, _ = implicit_euler_fixed(h_imp, 1e-6); t_imp = time.perf_counter() - start
+print(f"{'Implicit Euler':<20} | {h_imp:<12.1e} | {np.linalg.norm(y_imp - y_exact_40, np.inf):<15.2e} | {t_imp:<15.4f} | {n_imp + it_imp:<12} | {it_imp}")
 
 print("\n" + "="*85)
 print("Table 6: Effect of Newton residual tolerance on invariant defect (h=0.1, n=400)")
