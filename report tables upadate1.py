@@ -5,6 +5,9 @@ import time
 # ==============================================================================
 # 1. Problem Definition (Robertson Chemical Kinetics)
 # ==============================================================================
+T_END = 40.0
+INITIAL_STATE = np.array([1.0, 0.0, 0.0])
+
 def robertson(t, y):
     y1, y2, y3 = y
     dy1 = -0.04 * y1 + 1e4 * y2 * y3
@@ -27,24 +30,24 @@ def reduced_jacobian(y1, y2):
     ])
 
 print("Generating high-accuracy reference solution (Radau, rtol=1e-12, atol=1e-14)...")
-ref_sol = solve_ivp(robertson, [0, 40], [1, 0, 0], method='Radau', rtol=1e-12, atol=1e-14, dense_output=True)
+ref_sol = solve_ivp(robertson, [0, T_END], INITIAL_STATE, method='Radau', rtol=1e-12, atol=1e-14, dense_output=True)
 y_exact_40 = ref_sol.y[:, -1]
-print(f"Reference solution y_exact(40) = {y_exact_40}\n")
+print(f"Reference solution y_exact({T_END:g}) = {y_exact_40}\n")
 
 # ==============================================================================
 # 2. Solver Definitions
 # ==============================================================================
-def explicit_euler(h):
-    N = int(40 / h)
-    y = np.array([1.0, 0.0, 0.0])
+def explicit_euler(h, t_end=T_END, y0=INITIAL_STATE):
+    N = int(t_end / h)
+    y = np.array(y0, dtype=float).copy()
     for _ in range(N):
         y = y + h * robertson(0, y)
         if np.any(np.isnan(y)) or np.any(y < -1.0): return y, N, True
     return y, N, False
 
-def rk4(h):
-    N = int(40 / h)
-    y = np.array([1.0, 0.0, 0.0])
+def rk4(h, t_end=T_END, y0=INITIAL_STATE):
+    N = int(t_end / h)
+    y = np.array(y0, dtype=float).copy()
     for _ in range(N):
         k1 = robertson(0, y)
         k2 = robertson(0, y + h/2 * k1)
@@ -65,9 +68,9 @@ def solve_implicit_step(y_old, h, tau_newton):
         iters += 1
     return y_guess, iters
 
-def implicit_euler_fixed(h, tau_newton):
-    N = int(40 / h)
-    y = np.array([1.0, 0.0, 0.0])
+def implicit_euler_fixed(h, tau_newton, t_end=T_END, y0=INITIAL_STATE):
+    N = int(t_end / h)
+    y = np.array(y0, dtype=float).copy()
     total_iters = 0
     for _ in range(N):
         y, iters = solve_implicit_step(y, h, tau_newton)
@@ -75,11 +78,11 @@ def implicit_euler_fixed(h, tau_newton):
         if np.any(np.isnan(y)) or np.any(y < -1.0): return y, N, total_iters, True
     return y, N, total_iters, False
 
-def implicit_euler_adaptive(tol=1e-4):
-    t, y, h = 0.0, np.array([1.0, 0.0, 0.0]), 1e-6
+def implicit_euler_adaptive(tol=1e-4, t_end=T_END, y0=INITIAL_STATE):
+    t, y, h = 0.0, np.array(y0, dtype=float).copy(), 1e-6
     steps, total_iters = 0, 0
-    while t < 40:
-        if t + h > 40: h = 40 - t
+    while t < t_end:
+        if t + h > t_end: h = t_end - t
         y_a, it_a = solve_implicit_step(y, h, 1e-6)
         y_b_half, it_b1 = solve_implicit_step(y, h/2, 1e-6)
         y_b, it_b2 = solve_implicit_step(y_b_half, h/2, 1e-6)
@@ -100,7 +103,7 @@ print("Table 1: Dynamic spectral evolution and stiffness ratio")
 print("="*85)
 print(f"{'Time t (s)':<12} | {'|lambda|_max':<12} | {'|lambda|_min':<12} | {'Stiffness Ratio S(t)':<20} | {'Active Regime'}")
 print("-" * 85)
-t_list = [1e-8, 1e-4, 1e-2, 1, 40]
+t_list = [1e-8, 1e-4, 1e-2, 1, T_END]
 regimes = ["Fast initial transient", "Boundary layer peak (y2 ~ 1e-5)", "Intermediate radical exchange", "Slow quasi-steady state", "Long-term equilibrium drift"]
 for i, t in enumerate(t_list):
     y = ref_sol.sol(t)
@@ -116,7 +119,7 @@ for name, p in [("Explicit Euler", 1), ("Implicit Euler", 1), ("Runge-Kutta 2 (R
     print(f"{name:<30} | {p}")
 
 print("\n" + "="*85)
-print("Table 3: Convergence verification, stability assessment, and empirical order at t = 40")
+print(f"Table 3: Convergence verification, stability assessment, and empirical order at t = {T_END:g}")
 print("="*85)
 print(f"{'Method':<16} | {'Step Size h':<12} | {'Global Error E(h)':<18} | {'Observed Order p':<16} | {'Non-Neg?':<8} | {'Stable?'}")
 print("-" * 90)
@@ -143,7 +146,7 @@ for h in h_list_impEuler:
     prev_err = err
 
 print("\n" + "="*85)
-print("Table 4: Decoupled diagnostics for Explicit Euler near the stability limit (t = 40)")
+print(f"Table 4: Decoupled diagnostics for Explicit Euler near the stability limit (t = {T_END:g})")
 print("="*85)
 print(f"{'Step Size h (s)':<15} | {'Max Invariant Defect':<20} | {'Minimum y2':<15} | {'Relative Error':<15} | {'Diagnostic Status'}")
 print("-" * 90)
@@ -165,14 +168,14 @@ print("="*85)
 print(f"{'Method':<20} | {'Step Size h':<12} | {'Global Error':<15} | {'CPU Time (s)':<15} | {'RHS Evals':<12} | {'Newton Iters'}")
 print("-" * 100)
 start = time.perf_counter(); y_ee, _, _ = explicit_euler(2.08e-4); t_ee = time.perf_counter() - start
-print(f"{'Explicit Euler':<20} | {2.08e-4:<12.1e} | {np.linalg.norm(y_ee - y_exact_40, np.inf):<15.2e} | {t_ee:<15.4f} | {int(40/2.08e-4):<12} | {'-'}")
+print(f"{'Explicit Euler':<20} | {2.08e-4:<12.1e} | {np.linalg.norm(y_ee - y_exact_40, np.inf):<15.2e} | {t_ee:<15.4f} | {int(T_END/2.08e-4):<12} | {'-'}")
 start = time.perf_counter(); y_rk4, _, _ = rk4(8.00e-4); t_rk4 = time.perf_counter() - start
-print(f"{'Classical RK4':<20} | {8.00e-4:<12.1e} | {np.linalg.norm(y_rk4 - y_exact_40, np.inf):<15.2e} | {t_rk4:<15.4f} | {int(40/8e-4)*4:<12} | {'-'}")
+print(f"{'Classical RK4':<20} | {8.00e-4:<12.1e} | {np.linalg.norm(y_rk4 - y_exact_40, np.inf):<15.2e} | {t_rk4:<15.4f} | {int(T_END/8e-4)*4:<12} | {'-'}")
 start = time.perf_counter(); y_imp, steps_imp, it_imp = implicit_euler_adaptive(1e-4); t_imp = time.perf_counter() - start
 print(f"{'Implicit Euler (Adap)':<20} | {'Adaptive':<12} | {np.linalg.norm(y_imp - y_exact_40, np.inf):<15.2e} | {t_imp:<15.4f} | {steps_imp*3:<12} | {it_imp}")
 
 print("\n" + "="*85)
-print("Table 6: Effect of Newton residual tolerance on invariant defect (h=0.1, n=400)")
+print(f"Table 6: Effect of Newton residual tolerance on invariant defect (h=0.1, n={int(T_END/0.1)})")
 print("="*85)
 print(f"{'Newton Tol tau':<14} | {'Max Invariant Defect':<20} | {'Trajectory Error E(h)':<22} | {'Avg Newton Iters/Step':<22} | {'Total CPU Time (s)'}")
 print("-" * 110)
